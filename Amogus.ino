@@ -35,7 +35,7 @@ void setup() {
   Serial.begin(9600);
 
   servo.attach(3);
-  servo.write(70);
+  servo.write(70);   // closed position
 
   lcd.init();
   lcd.backlight();
@@ -50,11 +50,9 @@ void setup() {
 }
 
 void loop() {
-
   lcd.setCursor(0,0);
   lcd.print("Scan your card ");
 
-  // Wait for card
   if (!rfid.PICC_IsNewCardPresent()) return;
   if (!rfid.PICC_ReadCardSerial()) return;
 
@@ -62,46 +60,47 @@ void loop() {
   lcd.print("Scanning...");
 
   String ID = "";
-  ID.reserve(30); // helps memory
+  ID.reserve(30);
 
-  // Read UID
   for (byte i = 0; i < rfid.uid.size; i++) {
     if (rfid.uid.uidByte[i] < 0x10) ID += "0";
     ID += String(rfid.uid.uidByte[i], HEX);
     if (i < rfid.uid.size - 1) ID += " ";
   }
-
   ID.toUpperCase();
 
-  // 🔥 SEND TO PYTHON
+  // Send to Python (optional)
   Serial.print("UID: ");
   Serial.println(ID);
 
   bool found = false;
-
-  // Check user locally (for LCD + servo only)
+  int userIndex = -1;
   for (int i = 0; i < totalUsers; i++) {
     if (ID == UIDs[i]) {
       found = true;
-
-      if (!inside[i]) {
-        inside[i] = true;
-        enterMessage(names[i]);
-      } else {
-        inside[i] = false;
-        exitMessage();
-      }
+      userIndex = i;
       break;
     }
   }
 
   if (!found) {
     deniedMessage();
+  } 
+  else {
+    if (!inside[userIndex]) {
+      // ENTRY: open servo
+      inside[userIndex] = true;
+      enterMessage(names[userIndex]);
+    } 
+    else {
+      // EXIT: only say "Thank you", do NOT open servo
+      inside[userIndex] = false;
+      exitThanksMessage(names[userIndex]);
+    }
   }
 
   rfid.PICC_HaltA();
   rfid.PCD_StopCrypto1();
-
   delay(1000);
   lcd.clear();
 }
@@ -114,28 +113,25 @@ void enterMessage(String name) {
   lcd.print("Welcome");
   lcd.setCursor(0,1);
   lcd.print(name);
+  delay(1500);
 
-  servo.write(160);
+  servo.write(160);   // open
   delay(3000);
-  servo.write(70);
+  servo.write(70);    // close
 
   lcd.clear();
   lcd.print("Gate Closed");
   delay(1500);
 }
 
-void exitMessage() {
+void exitThanksMessage(String name) {
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print("Goodbye!");
-
-  servo.write(160);
-  delay(3000);
-  servo.write(70);
-
-  lcd.clear();
-  lcd.print("Gate Closed");
-  delay(1500);
+  lcd.print("Thank you,");
+  lcd.setCursor(0,1);
+  lcd.print(name);
+  delay(2000);
+  // No servo movement
 }
 
 void deniedMessage() {
