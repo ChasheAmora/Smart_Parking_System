@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RFID Access Control System</title>
+    <title>RFID</title>
     <style>
         * {
             margin: 0;
